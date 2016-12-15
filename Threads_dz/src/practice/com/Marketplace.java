@@ -14,25 +14,26 @@ public class Marketplace {
     static BlockingQueue<String> storage;
     //    static final Object lockObj = new Object();
     private int numFarmers, numSellers, numItems, timeToCheckAnItem,
-            farmerSleepTime, sellersTakeAmount, sellerTimeToLeave, sellerReturnTime;
+             sellersTakeAmount, sellerTimeToLeave, sellerReturnTime;
     private double p;
 
     private String tmpFarmersStorage[], tmpSellersStorage[];
     private Random rd = new Random();
-    private boolean _hasItemsToDeliver, _storageOpened;
+    private volatile boolean _hasItemsToDeliver = false, _storageOpened = false;
 
     public Marketplace(int numFarmers, int numSellers, int timeToCheckAnItem,
-                       int sellerTimeToLeave, int farmerSleepTime,
+                       int sellerTimeToLeave,
                        int sellerReturnTime, double p) {
         this.numFarmers = numFarmers;
         this.numSellers = numSellers;
         this.timeToCheckAnItem = timeToCheckAnItem;
         this.sellerTimeToLeave = sellerTimeToLeave;
-        this.farmerSleepTime = farmerSleepTime;
         this.sellerReturnTime = sellerReturnTime;
         this.p = p;
         storage = new LinkedBlockingQueue<>();
     }
+
+    boolean workWithFarmer = false;
 
     class Farmer {
         void generateSomeItems() {
@@ -51,7 +52,8 @@ public class Marketplace {
                     storage.wait();
                 }
                 generateSomeItems();
-                System.out.printf("Farmer generated %d items %n", tmpFarmersStorage.length);
+                System.out.printf("Farmer brought %d items %n", tmpFarmersStorage.length);
+                workWithFarmer = true;
                 _hasItemsToDeliver = true;
                 storage.notifyAll();
             }
@@ -62,27 +64,29 @@ public class Marketplace {
         void checkSomeItems() throws InterruptedException {
             synchronized (storage) {
                 if (!_hasItemsToDeliver) {
-                    if (storage.size() > 0)
-                        _storageOpened = true;
                     storage.wait();
                 }
                 filterItems();
                 System.out.printf("Inspector filtered farmer's items. %n");
                 Arrays.fill(tmpFarmersStorage, null);
                 _hasItemsToDeliver = false;
+                if (storage.size() > 0) {
+                    _storageOpened = true;
+                    System.out.printf("Storage opened for sellers. %n");
+                    workWithFarmer = false;
+                }
                 storage.notifyAll();
             }
         }
 
         private void filterItems() throws InterruptedException {
-            if (tmpFarmersStorage.length != 0)
-                for (String item : tmpFarmersStorage) {
-                    if (generateProbabilityCheck(p)) {
-                        TimeUnit.SECONDS.sleep(timeToCheckAnItem);
-                        storage.put(item);
-                        System.out.printf("%s is good. Put in a storage.%n", item);
-                    }
+            for (String item : tmpFarmersStorage) {
+                if (generateProbabilityCheck(p)) {
+                    TimeUnit.SECONDS.sleep(timeToCheckAnItem);
+                    storage.put(item);
+                    System.out.printf("%s is good. Put in a storage.%n", item);
                 }
+            }
         }
 
         private boolean generateProbabilityCheck(double p) {
@@ -92,33 +96,43 @@ public class Marketplace {
     }
 
     class Seller {
-        public void takeItems() throws InterruptedException {
+        volatile boolean took = false;
+
+        void takeItems() throws InterruptedException {
             synchronized (storage) {
-                if (!_storageOpened) {
-                    storage.wait();
-                }
 //                sellersTakeAmount = 10 + rd.nextInt(91);
                 sellersTakeAmount = 1 + rd.nextInt(5);
+                if (!_storageOpened || workWithFarmer) {
+                    storage.wait();
+                }
                 System.out.printf("Seller wants %d items %n", sellersTakeAmount);
                 if (storage.size() < sellersTakeAmount) {
                     System.out.printf("Not enough items. Seller waits. %n");
                     storage.wait();
                 }
+                if (workWithFarmer)
+                    storage.wait();
                 tmpSellersStorage = new String[sellersTakeAmount];
                 for (int i = 0; i < sellersTakeAmount; ++i) {
                     tmpSellersStorage[i] = storage.take();
+                    System.out.printf("Seller took %s %n", tmpSellersStorage[i]);
                 }
-                System.out.printf("Seller took items. %n");
+                System.out.printf("Seller took %d items. %n", sellersTakeAmount);
                 TimeUnit.SECONDS.sleep(sellerTimeToLeave);
                 _storageOpened = false;
+                System.out.printf("Storage closed for sellers. %n");
+                took = true;
                 storage.notifyAll();
-                sellItems();
             }
         }
 
-        private void sellItems() throws InterruptedException {
+        void sellItems() throws InterruptedException {
             Arrays.fill(tmpSellersStorage, null);
+            System.out.printf("Seller selled items. %n");
             TimeUnit.SECONDS.sleep(sellerReturnTime);
+            took = false;
         }
     }
 }
+
+// EOF

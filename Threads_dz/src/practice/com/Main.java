@@ -1,8 +1,6 @@
 package practice.com;
 
 import java.util.Scanner;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 public class Main {
@@ -29,22 +27,37 @@ public class Main {
         p = sc.nextDouble();
 
         Marketplace mp = new Marketplace(numFarmers, numSellers,
-                timeToCheckAnItem, sellerTimeToLeave, farmerSleepTime, sellerReturnTime, p);
+                timeToCheckAnItem, sellerTimeToLeave, sellerReturnTime, p);
         Marketplace.Farmer farmer = mp.new Farmer();
         Marketplace.Inspector inspector = mp.new Inspector();
         Marketplace.Seller seller = mp.new Seller();
-        Thread f = new Thread(() -> {
-            try {
-                for (int i = 0; i < numFarmers; ++i) {
-//                    TimeUnit.SECONDS.sleep(2);
-                    farmer.deliverSomeItems();
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        });
 
-        Thread i = new Thread(() -> {
+        Thread[] farmersThreads = new Thread[numFarmers];
+        Thread[] sellersThreads = new Thread[numSellers];
+
+        for (int i = 0; i < numFarmers; ++i) {
+            farmersThreads[i] = new Thread(() -> {
+                try {
+                    farmer.deliverSomeItems();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }, "F_" + i);
+        }
+
+//        Thread f = new Thread(() -> {
+//            try {
+//                for (int i = 0; i < numFarmers; ++i) {
+////                    TimeUnit.SECONDS.sleep(2);
+//                    farmer.deliverSomeItems();
+//                }
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        });
+
+
+        Thread insp = new Thread(() -> {
             try {
                 for (int j = 0; j < numFarmers; ++j) {
 //                    TimeUnit.SECONDS.sleep(3);
@@ -56,19 +69,43 @@ public class Main {
             }
         });
 
-        Thread s = new Thread(() -> {
-            try {
-                for (int j = 0; j < numSellers; ++j) {
-//                    TimeUnit.SECONDS.sleep(3);
+        for (int j = 0; j < numSellers; ++j) {
+            sellersThreads[j] = new Thread(() -> {
+                try {
+                    if (seller.took)
+                        seller.sellItems();
                     seller.takeItems();
+                    farmer.deliverSomeItems();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        });
+            }, "S_" + j);
+        }
 
-        f.start();
-        i.start();
-        s.start();
+//        Thread s = new Thread(() -> {
+//            try {
+//                for (int j = 0; j < numSellers; ++j) {
+////                    TimeUnit.SECONDS.sleep(3);
+//                    if (seller.took)
+//                        seller.sellItems();
+//                    seller.takeItems();
+//                }
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        });
+
+//        f.start();
+        insp.start();
+//        s.start();
+        for (int i = 0; i < farmersThreads.length; ++i) {
+            farmersThreads[i].start();
+            TimeUnit.SECONDS.sleep(farmerSleepTime);
+        }
+        for (int i = 0; i < sellersThreads.length; ++i) {
+            sellersThreads[i].start();
+        }
     }
 }
+
+// EOF
