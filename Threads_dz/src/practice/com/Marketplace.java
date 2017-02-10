@@ -14,21 +14,21 @@ public class Marketplace {
     static BlockingQueue<String> storage;
     //    static final Object lockObj = new Object();
     private int numFarmers, numSellers, numItems, timeToCheckAnItem,
-             sellersTakeAmount, sellerTimeToLeave, sellerReturnTime;
+            sellersTakeAmount, sellerTimeToLeave, sellerReturnTime;
     private double p;
 
     private String tmpFarmersStorage[], tmpSellersStorage[];
     private Random rd = new Random();
     private volatile boolean _hasItemsToDeliver = false, _storageOpened = false;
 
-    public Marketplace(int numFarmers, int numSellers, int timeToCheckAnItem,
-                       int sellerTimeToLeave,
-                       int sellerReturnTime, double p) {
+    public Marketplace(int numFarmers, int numSellers, float timeToCheckAnItem,
+                       float sellerTimeToLeave,
+                       float sellerReturnTime, double p) {
         this.numFarmers = numFarmers;
         this.numSellers = numSellers;
-        this.timeToCheckAnItem = timeToCheckAnItem;
-        this.sellerTimeToLeave = sellerTimeToLeave;
-        this.sellerReturnTime = sellerReturnTime;
+        this.timeToCheckAnItem = (int) timeToCheckAnItem;
+        this.sellerTimeToLeave = (int) sellerTimeToLeave;
+        this.sellerReturnTime = (int) sellerReturnTime;
         this.p = p;
         storage = new LinkedBlockingQueue<>();
     }
