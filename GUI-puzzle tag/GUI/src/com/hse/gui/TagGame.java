@@ -3,10 +3,13 @@ package com.hse.gui;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.*;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.lang.reflect.Array;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
+import java.util.List;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.filechooser.FileFilter;
@@ -21,6 +24,7 @@ public class TagGame extends JFrame {
     private Tag lastButton;
     private int width, height;
     private static final int DESIRED_WIDTH = 600;
+    ArrayList<Integer> highScores = new ArrayList<>();
     public static final int
             ROWS = 4,
             COLS = 4,
@@ -30,12 +34,12 @@ public class TagGame extends JFrame {
     boolean pathChanged = false;
     private int numberOfTurns = 0;
 
-    private TagGame(String path) throws URISyntaxException {
+    private TagGame(String path) throws URISyntaxException, IOException {
         this.path = path;
         initUI();
     }
 
-    private void initUI() throws URISyntaxException {
+    private void initUI() throws URISyntaxException, IOException {
         for (int i = 0; i < ROWS; ++i) {
             for (int j = 0; j < COLS; ++j) {
                 solution.add(new Point(i, j));
@@ -43,6 +47,10 @@ public class TagGame extends JFrame {
         }
         setBounds(500, 100, 600, 500);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+
+
+        readHighScores();
+
 
         tags = new ArrayList<>();
 
@@ -53,7 +61,8 @@ public class TagGame extends JFrame {
         JMenuBar menu = new JMenuBar();
         JMenu fileMenu = new JMenu("File");
 
-        for (String fileItem : new String[]{"Open", "Shuffle", "Show source img", "Exit"}) {
+        for (String fileItem : new String[]{"Open", "Shuffle", "Show source img",
+                "Show highscore table", "Clear highscore table", "Exit"}) {
             JMenuItem item = new JMenuItem(fileItem);
             item.setActionCommand(fileItem);
             item.addActionListener(e -> {
@@ -70,11 +79,11 @@ public class TagGame extends JFrame {
                         } catch (RasterFormatException e1) {
                             JOptionPane.showMessageDialog(
                                     null,
-                                    "Image too small! Choose another one.",
+                                    "Image inappropriate! Choose another one.",
                                     "Exception occured",
                                     JOptionPane.ERROR_MESSAGE);
-                            System.out.println("Image too small! Choose another one.");
-                        } catch (URISyntaxException e1) {
+                            System.out.println("Image inappropriate! Choose another one.");
+                        } catch (URISyntaxException | IOException e1) {
                             e1.printStackTrace();
                         }
                         break;
@@ -82,18 +91,36 @@ public class TagGame extends JFrame {
                         System.exit(0);
                         break;
                     case "Shuffle":
-                        TagGame tg = null;
-                        try {
-                            tg = new TagGame(this.path);
-                            tg.setVisible(true);
-                            this.dispose();
-
-                        } catch (URISyntaxException e1) {
-                            e1.printStackTrace();
+                        if (sourceImage != null) {
+                            TagGame tg;
+                            try {
+                                tg = new TagGame(this.path);
+                                tg.setVisible(true);
+                                this.dispose();
+                                numberOfTurns = 0;
+                            } catch (URISyntaxException | IOException e1) {
+                                e1.printStackTrace();
+                            }
+                        } else {
+                            JOptionPane.showMessageDialog(
+                                    null,
+                                    "Nothing to shuffle",
+                                    "Load an image first.",
+                                    JOptionPane.ERROR_MESSAGE);
                         }
                         break;
                     case "Show source img":
                         showSourceImage();
+                        break;
+                    case "Show highscore table":
+                        showTableofHighscores(false);
+                        break;
+                    case "Clear highscore table":
+                        try {
+                            ClearHighscoreTable();
+                        } catch (IOException e1) {
+                            e1.printStackTrace();
+                        }
                         break;
                 }
             });
@@ -147,7 +174,30 @@ public class TagGame extends JFrame {
                 }
             }
 
-            Collections.shuffle(tags);
+//
+//            Collections.shuffle(tags);
+//
+//            boolean solvable = false;
+//
+//            while (!solvable) {
+//                System.out.println("generating solvable puzzle");
+//                ArrayList<Point> current = new ArrayList<>();
+//                for (Tag btn : tags) {
+//                    current.add((Point) btn.getClientProperty("position"));
+//                }
+//
+//                current.add((Point) lastButton.getClientProperty("position"));
+//
+//                int[] currentPositions = new int[DIM];
+//                for (int i = 0; i < DIM; ++i) {
+//                    currentPositions[i] = current.get(i).x * ROWS + current.get(i).y;
+//                }
+//                Collections.shuffle(tags);
+//
+//                solvable = isSolvable(currentPositions);
+//                System.out.println("solvable: " + solvable);
+//            }
+
             tags.add(lastButton);
 
             for (int i = 0; i < DIM; i++) {
@@ -162,6 +212,37 @@ public class TagGame extends JFrame {
         setResizable(false);
     }
 
+    private boolean isSolvable(int[] puzzle) {
+        int parity = 0;
+        int gridWidth = (int) Math.sqrt(puzzle.length);
+        int row = 0; // the current row we are on
+        int blankRow = 0; // the row with the blank tile
+
+        for (int i = 0; i < puzzle.length; i++) {
+            if (i % gridWidth == 0) { // advance to next row
+                row++;
+            }
+            if (puzzle[i] == 0) { // the blank tile
+                blankRow = row; // save the row on which encountered
+                continue;
+            }
+            for (int j = i + 1; j < puzzle.length; j++) {
+                if (puzzle[i] > puzzle[j] && puzzle[j] != 0) {
+                    parity++;
+                }
+            }
+        }
+
+        if (gridWidth % 2 == 0) { // even grid
+            if (blankRow % 2 == 0) { // blank on odd row; counting from bottom
+                return parity % 2 == 0;
+            } else { // blank on even row; counting from bottom
+                return parity % 2 != 0;
+            }
+        } else { // odd grid
+            return parity % 2 == 0;
+        }
+    }
 
     private void openImage() {
         JFileChooser fileChooser = new JFileChooser();
@@ -172,7 +253,6 @@ public class TagGame extends JFrame {
             pathChanged = !fileChooser.getSelectedFile().getAbsolutePath().equals(path);
             path = fileChooser.getSelectedFile().getAbsolutePath();
         }
-
     }
 
     private void showSourceImage() {
@@ -256,12 +336,68 @@ public class TagGame extends JFrame {
             current.add((Point) btn.getClientProperty("position"));
         }
 
+
         if (compareList(solution, current)) {
             lastButton.setIcon(null);
             lastButton.setText("ХОДОВ:" + numberOfTurns);
-            JOptionPane.showMessageDialog(null, "YOU WON!",
-                    "CONGRATULATIONS!!!", JOptionPane.INFORMATION_MESSAGE);
-            System.err.println("The game has ended. You won.");
+            lastButton.setEnabled(false);
+            for (Tag tag : tags) {
+                tag.setEnabled(false);
+            }
+
+            try {
+                writeHighScore();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            int minimum = Integer.MAX_VALUE;
+            try {
+                minimum = Collections.min(highScores);
+                highScores = removeDuplicates(highScores);
+            } catch (NoSuchElementException ignored) {
+            }
+            if (numberOfTurns < minimum) {
+                int res = JOptionPane.showOptionDialog(null,
+                        "YOU WON! NEW HIGHSCORE: " + numberOfTurns + "! Show table of winners?", "CONGRATULATIONS!",
+                        JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE,
+                        null, null, null);
+                switch (res) {
+                    case JOptionPane.YES_OPTION:
+                        showTableofHighscores(true);
+                        break;
+                    case JOptionPane.NO_OPTION:
+                        break;
+                }
+                System.err.println("The game has ended. You won.");
+            } else {
+                int res = JOptionPane.showOptionDialog(null, "YOU WON! " +
+                                "Show table of winners?", "CONGRATULATIONS!!!",
+                        JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE,
+                        null, null, null);
+                switch (res) {
+                    case JOptionPane.YES_OPTION:
+                        showTableofHighscores(true);
+                        break;
+                    case JOptionPane.NO_OPTION:
+                        break;
+                }
+            }
+            highScores.add(numberOfTurns);
+        }
+    }
+
+    private void ClearHighscoreTable() throws IOException {
+        int res = JOptionPane.showOptionDialog(null, "Are you sure?", "Clear history of matches",
+                JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE,
+                null, null, null);
+        switch (res) {
+            case JOptionPane.YES_OPTION:
+                highScores.clear();
+                Files.deleteIfExists(Paths.get("highScores.txt"));
+                break;
+            case JOptionPane.NO_OPTION:
+                break;
         }
     }
 
@@ -269,12 +405,64 @@ public class TagGame extends JFrame {
         return ls1.toString().contentEquals(ls2.toString());
     }
 
+    private void showTableofHighscores(boolean you) {
+        highScores = removeDuplicates(highScores);
+        ArrayList<Integer> cpy = new ArrayList<>();
+        cpy.addAll(highScores);
+        if (numberOfTurns != 0) {
+            cpy.add(numberOfTurns);
+        }
+        cpy = removeDuplicates(cpy);
+        Collections.sort(cpy);
+        int indexYour = cpy.indexOf(numberOfTurns);
+        StringBuilder msg = new StringBuilder("place  score \n");
+        for (int i = 0; i < cpy.size(); ++i) {
+            if (you && i == indexYour) {
+                msg.append("    ").append(i + 1).append("          ").append(cpy.get(i)).append("<-- YOU").append("\n");
+                continue;
+            }
+            msg.append("    ").append(i + 1).append("          ").append(cpy.get(i)).append("\n");
+        }
+        if (highScores.size() == 0 && numberOfTurns == 0)
+            msg = new StringBuilder("No games has been played yet.");
+        JOptionPane.showMessageDialog(null, msg,
+                "Table of scores", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void readHighScores() throws IOException {
+        if (!Files.exists(Paths.get("highScores.txt"))) {
+            Files.createFile(Paths.get("highScores.txt"));
+        }
+        Scanner scanner = new Scanner(new File("highScores.txt"));
+        while (scanner.hasNextInt()) {
+            highScores.add(scanner.nextInt());
+        }
+    }
+
+    private void writeHighScore() throws IOException {
+        if (!Files.exists(Paths.get("highScores.txt"))) {
+            Files.createFile(Paths.get("highScores.txt"));
+        }
+        FileWriter fileWriter = new FileWriter("highScores.txt", true);
+        fileWriter.write("\n" + numberOfTurns);
+        fileWriter.close();
+    }
+
+    private ArrayList<Integer> removeDuplicates(ArrayList<Integer> inp) {
+        Set<Integer> hs = new HashSet<>();
+        hs.addAll(inp);
+        inp.clear();
+        inp.addAll(hs);
+
+        return inp;
+    }
+
     public static void main(String[] args) {
         EventQueue.invokeLater(() -> {
             TagGame game = null;
             try {
                 game = new TagGame("");
-            } catch (URISyntaxException ex) {
+            } catch (URISyntaxException | IOException ex) {
                 ex.printStackTrace();
             }
             if (game != null) {
