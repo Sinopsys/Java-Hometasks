@@ -4,18 +4,25 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.*;
 import java.io.*;
-import java.lang.reflect.Array;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.List;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+/**
+ * @author  Kupriyanov Kirill
+ * @group   BSE151
+ * @IDE     IntelliJ
+ * @date    7.02.2017
+ */
+
 public class TagGame extends JFrame {
+    // fields
+    //
     private JPanel panel;
     private BufferedImage sourceImage;
     private ArrayList<Tag> tags;
@@ -34,11 +41,24 @@ public class TagGame extends JFrame {
     boolean pathChanged = false;
     private int numberOfTurns = 0;
 
+    /**
+     * Constructor
+     *
+     * @param path - path to the source image
+     * @throws URISyntaxException
+     * @throws IOException
+     */
     private TagGame(String path) throws URISyntaxException, IOException {
         this.path = path;
         initUI();
     }
 
+    /**
+     * a method for initializing UI elements
+     *
+     * @throws URISyntaxException
+     * @throws IOException
+     */
     private void initUI() throws URISyntaxException, IOException {
         for (int i = 0; i < ROWS; ++i) {
             for (int j = 0; j < COLS; ++j) {
@@ -58,6 +78,8 @@ public class TagGame extends JFrame {
         panel.setBorder(BorderFactory.createLineBorder(Color.gray));
         panel.setLayout(new GridLayout(ROWS, COLS, 0, 0));
 
+        //constructing a menu bar
+        //
         JMenuBar menu = new JMenuBar();
         JMenu fileMenu = new JMenu("File");
 
@@ -131,6 +153,8 @@ public class TagGame extends JFrame {
         setJMenuBar(menu);
 
 
+        // resize image to the squared one
+        //
         if (!path.equals("")) {
             try {
                 sourceImage = loadImage();
@@ -154,6 +178,8 @@ public class TagGame extends JFrame {
 
             add(panel, BorderLayout.CENTER);
 
+            // init and add buttons to the panel
+            //
             for (int i = 0; i < ROWS; i++) {
                 for (int j = 0; j < COLS; j++) {
                     image = createImage(new FilteredImageSource(resized.getSource(),
@@ -174,29 +200,32 @@ public class TagGame extends JFrame {
                 }
             }
 
-//
-//            Collections.shuffle(tags);
-//
-//            boolean solvable = false;
-//
-//            while (!solvable) {
-//                System.out.println("generating solvable puzzle");
-//                ArrayList<Point> current = new ArrayList<>();
-//                for (Tag btn : tags) {
-//                    current.add((Point) btn.getClientProperty("position"));
-//                }
-//
-//                current.add((Point) lastButton.getClientProperty("position"));
-//
-//                int[] currentPositions = new int[DIM];
-//                for (int i = 0; i < DIM; ++i) {
-//                    currentPositions[i] = current.get(i).x * ROWS + current.get(i).y;
-//                }
-//                Collections.shuffle(tags);
-//
-//                solvable = isSolvable(currentPositions);
-//                System.out.println("solvable: " + solvable);
-//            }
+            // shuffling tags
+            //
+            Collections.shuffle(tags);
+
+            boolean solvable = false;
+
+            // shuffle again if the generated combination is not solvable
+            //
+            while (!solvable) {
+                System.out.println("generating solvable puzzle");
+                ArrayList<Point> current = new ArrayList<>();
+                for (Tag btn : tags) {
+                    current.add((Point) btn.getClientProperty("position"));
+                }
+
+                current.add((Point) lastButton.getClientProperty("position"));
+
+                int[] currentPositions = new int[DIM];
+                for (int i = 0; i < DIM; ++i) {
+                    currentPositions[i] = current.get(i).x * ROWS + current.get(i).y;
+                }
+                Collections.shuffle(tags);
+
+                solvable = isSolvable(currentPositions);
+                System.out.println("solvable: " + solvable);
+            }
 
             tags.add(lastButton);
 
@@ -212,6 +241,12 @@ public class TagGame extends JFrame {
         setResizable(false);
     }
 
+    /**
+     * Determines if the generated combination is solvable
+     *
+     * @param puzzle combination
+     * @return true if it is and false if it is not
+     */
     private boolean isSolvable(int[] puzzle) {
         int parity = 0;
         int gridWidth = (int) Math.sqrt(puzzle.length);
@@ -244,6 +279,9 @@ public class TagGame extends JFrame {
         }
     }
 
+    /**
+     * opens image and assignes value to the path variable using JFileChooser
+     */
     private void openImage() {
         JFileChooser fileChooser = new JFileChooser();
         FileFilter imageFilter = new FileNameExtensionFilter(
@@ -255,6 +293,10 @@ public class TagGame extends JFrame {
         }
     }
 
+    /**
+     * A message dialog pops up to show the source image
+     * so the gamer could see what he/she is supposed to gather
+     */
     private void showSourceImage() {
         if (sourceImage == null)
             JOptionPane.showMessageDialog(this,
@@ -269,11 +311,25 @@ public class TagGame extends JFrame {
         }
     }
 
+    /**
+     * a helper method
+     *
+     * @param w - old picture's width
+     * @param h - old picture's height
+     * @return new height according to proportions
+     */
     private int getNewHeight(int w, int h) {
         double ratio = DESIRED_WIDTH / (double) w;
         return (int) (h * ratio);
     }
 
+    /**
+     * assignes value to bufferedImage
+     *
+     * @return
+     * @throws IOException
+     * @throws URISyntaxException
+     */
     private BufferedImage loadImage() throws IOException, URISyntaxException {
         BufferedImage bufferedImage = null;
         try {
@@ -284,6 +340,16 @@ public class TagGame extends JFrame {
         return bufferedImage;
     }
 
+    /**
+     * resizes an image
+     *
+     * @param originalImage
+     * @param width
+     * @param height
+     * @param type
+     * @return resized image
+     * @throws IOException
+     */
     private BufferedImage resizeImage(BufferedImage originalImage, int width, int height, int type)
             throws IOException {
 
@@ -294,6 +360,9 @@ public class TagGame extends JFrame {
         return resizedImage;
     }
 
+    /**
+     * what will be happening when the tag is clicked
+     */
     private class ClickAction extends AbstractAction {
         @Override
         public void actionPerformed(ActionEvent e) {
@@ -330,6 +399,10 @@ public class TagGame extends JFrame {
         }
     }
 
+    /**
+     * checks if the current combination is the winning one
+     * and shows message dialogs to indicate the winner
+     */
     private void checkWin() {
         ArrayList<Point> current = new ArrayList<>();
         for (Tag btn : tags) {
@@ -387,6 +460,11 @@ public class TagGame extends JFrame {
         }
     }
 
+    /**
+     * deletes current highscore table
+     *
+     * @throws IOException
+     */
     private void ClearHighscoreTable() throws IOException {
         int res = JOptionPane.showOptionDialog(null, "Are you sure?", "Clear history of matches",
                 JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE,
@@ -405,6 +483,11 @@ public class TagGame extends JFrame {
         return ls1.toString().contentEquals(ls2.toString());
     }
 
+    /**
+     * shows current table of highscores
+     *
+     * @param you - if you want to see where is YOUS place in the rating.
+     */
     private void showTableofHighscores(boolean you) {
         highScores = removeDuplicates(highScores);
         ArrayList<Integer> cpy = new ArrayList<>();
@@ -429,6 +512,11 @@ public class TagGame extends JFrame {
                 "Table of scores", JOptionPane.INFORMATION_MESSAGE);
     }
 
+    /**
+     * reads the file with the highscores and assignes it to arraylist
+     *
+     * @throws IOException
+     */
     private void readHighScores() throws IOException {
         if (!Files.exists(Paths.get("highScores.txt"))) {
             Files.createFile(Paths.get("highScores.txt"));
@@ -439,6 +527,11 @@ public class TagGame extends JFrame {
         }
     }
 
+    /**
+     * writes the highscores to file
+     *
+     * @throws IOException
+     */
     private void writeHighScore() throws IOException {
         if (!Files.exists(Paths.get("highScores.txt"))) {
             Files.createFile(Paths.get("highScores.txt"));
@@ -448,6 +541,12 @@ public class TagGame extends JFrame {
         fileWriter.close();
     }
 
+    /**
+     * removes duplicates from arraylist
+     *
+     * @param inp input arraylist to remove duplicates from
+     * @return
+     */
     private ArrayList<Integer> removeDuplicates(ArrayList<Integer> inp) {
         Set<Integer> hs = new HashSet<>();
         hs.addAll(inp);
@@ -457,6 +556,11 @@ public class TagGame extends JFrame {
         return inp;
     }
 
+    /**
+     * main method of the progranm
+     *
+     * @param args
+     */
     public static void main(String[] args) {
         EventQueue.invokeLater(() -> {
             TagGame game = null;
