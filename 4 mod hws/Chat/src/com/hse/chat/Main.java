@@ -1,8 +1,0 @@
-package com.hse.chat;
-
-public class Main {
-
-    public static void main(String[] args) {
-	// write your code here
-    }
-}
