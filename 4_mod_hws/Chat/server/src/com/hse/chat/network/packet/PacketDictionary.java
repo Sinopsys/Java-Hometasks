@@ -14,8 +14,9 @@ public class PacketDictionary {
 
     static {
         PACKET_DICTIONARY.put(PacketType.CONNECT, ConnectPacket.class);
-        PACKET_DICTIONARY.put(PacketType.CHAT, ChatPacket.class);
         PACKET_DICTIONARY.put(PacketType.DISCONNECT, DisconnectPacket.class);
+        PACKET_DICTIONARY.put(PacketType.CHAT, ChatPacket.class);
+        PACKET_DICTIONARY.put(PacketType.UPDATE, PacketUpdate.class);
     }
 
     public static Packet translatePacketType(PacketType type, String[] data) {

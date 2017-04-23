@@ -56,11 +56,6 @@ public class ChatServer extends JFrame {
     }
 
     public ChatServer() {
-        if (server != null) {
-            JOptionPane.showMessageDialog(null, "server already running",
-                    "Too many instances", JOptionPane.ERROR_MESSAGE);
-            System.exit(EXIT_SUCCESS);
-        }
         createView();
 
         server = new NetworkServer(PORT);
@@ -97,7 +92,7 @@ public class ChatServer extends JFrame {
         //
         ((DefaultCaret) console.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
         JScrollPane consoleSP = new JScrollPane(console);
-        consoleSP.setBorder(BorderFactory.createTitledBorder("Console Output"));
+        consoleSP.setBorder(BorderFactory.createTitledBorder("Server log"));
         panel.add(consoleSP, BorderLayout.CENTER);
 
         console.setWrapStyleWord(true);

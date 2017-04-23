@@ -2,6 +2,7 @@ package com.hse.chat;
 
 import com.hse.chat.network.NetworkClient;
 import com.hse.chat.network.packet.ChatPacket;
+import com.hse.chat.network.packet.DisconnectPacket;
 
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
@@ -57,6 +58,7 @@ public class ChatClient extends JFrame {
                         JOptionPane.YES_NO_OPTION);
                 if (confirmed == JOptionPane.YES_OPTION) {
                     try {
+                        client.sendPacket(new DisconnectPacket(client.getUsername()));
                         client.closeEverything();
                     } catch (IOException e1) {
                         e1.printStackTrace();
@@ -74,8 +76,10 @@ public class ChatClient extends JFrame {
         add(panel);
         panel.setLayout(new BorderLayout());
 
-        listUsers = new JList();
+        listUsers = new JList<>();
         JScrollPane listUsersSP = new JScrollPane(listUsers);
+        listUsersSP.setBorder(BorderFactory.createTitledBorder("Users"));
+
         listUsersSP.setPreferredSize(new Dimension(LIST_WIDTH, LIST_HEIGHT));
         panel.add(listUsersSP, BorderLayout.EAST);
 
@@ -88,6 +92,7 @@ public class ChatClient extends JFrame {
         //
         ((DefaultCaret) textChat.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
         JScrollPane textChatSP = new JScrollPane(textChat);
+        textChatSP.setBorder(BorderFactory.createTitledBorder("Chat history"));
         panelChat.add(textChatSP, BorderLayout.CENTER);
 
         JPanel panelInput = new JPanel(new BorderLayout());
@@ -127,18 +132,20 @@ public class ChatClient extends JFrame {
         if (message.length() == 0) {
             return;
         }
-        StringBuffer buf = new StringBuffer(client.getUsername());
-        buf.append(": ").append(message).append(System.lineSeparator());
 
-        textChat.append(client.getUsername() + ": " + message + System.lineSeparator());
+        showMessage(client.getUsername() + ": " + message + System.lineSeparator());
         fieldInput.setText("");
         // FIXME send chat message to server
-        client.sendPacket(new ChatPacket(client.getUsername(), buf.toString()));
+        client.sendPacket(new ChatPacket(client.getUsername(), message));
+    }
+
+    public void showMessage(String text) {
+        textChat.append(text);
     }
 
     public void updateView() {
         DefaultListModel<String> model = new DefaultListModel<>();
-        for (String name : client.getConnectedClientMap().keySet()) {
+        for (String name : client.getUserNames()) {
             model.addElement(name);
         }
         listUsers.setModel(model);

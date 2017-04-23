@@ -1,5 +1,7 @@
 package com.hse.chat.network.packet;
 
+import com.oracle.deploy.update.UpdateCheck;
+
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +14,9 @@ public class PacketDictionary {
 
     static {
         PACKET_DICTIONARY.put(PacketType.CONNECT, ConnectPacket.class);
+        PACKET_DICTIONARY.put(PacketType.DISCONNECT, DisconnectPacket.class);
+        PACKET_DICTIONARY.put(PacketType.CHAT, ChatPacket.class);
+        PACKET_DICTIONARY.put(PacketType.UPDATE, PacketUpdate.class);
     }
 
     public static Packet translatePacketType(PacketType type, String[] data) {

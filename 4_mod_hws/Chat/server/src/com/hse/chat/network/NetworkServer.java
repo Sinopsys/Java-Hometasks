@@ -3,9 +3,12 @@ package com.hse.chat.network;
 import com.hse.chat.ChatServer;
 import com.hse.chat.network.packet.*;
 
+import javax.swing.*;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
@@ -13,30 +16,30 @@ import java.util.*;
 /**
  * Created by kirill on 22.04.17.
  */
-public class NetworkServer implements PacketListener {
+public class NetworkServer {
     // vars
     //
     private ServerSocket socket;
     private boolean running = false;
     private int port;
     private static final String SEPARATOR = ";";
-    private List<PacketListener> packetListeners = new ArrayList<>();
+    private static final int EXIT_SUCCESS = 0;
     private Map<String, Socket> connectedClientMap = new HashMap<>();
-
+    private DataInputStream inputStream;
+    private DataOutputStream outputStream;
 
     public NetworkServer(int port) {
         this.port = port;
-        addPacketListener(this);
-    }
-
-    private void addPacketListener(PacketListener packetListener) {
-        packetListeners.add(packetListener);
     }
 
     public void startServer() {
         try {
             socket = new ServerSocket(port);
             ChatServer.getInstance().log("Server socket initialized on port " + port);
+        } catch (BindException e) {
+            JOptionPane.showMessageDialog(null, "Server already running",
+                    "Too many instances", JOptionPane.ERROR_MESSAGE);
+            System.exit(EXIT_SUCCESS);
         } catch (IOException e) {
             e.printStackTrace();
             return;
@@ -53,14 +56,15 @@ public class NetworkServer implements PacketListener {
                     new Thread(() -> {
                         boolean error = false;
                         while (!error && client.isConnected()) {
+                            Packet packet = null;
                             try {
-                                DataInputStream inputStream = new DataInputStream(client.getInputStream());
+                                inputStream = new DataInputStream(client.getInputStream());
                                 String rawData = inputStream.readUTF();
                                 String[] data = rawData.trim().split(SEPARATOR);
                                 PacketType type = PacketType.valueOf(data[0]);
-                                Packet packet = PacketDictionary.translatePacketType(type, data);
+                                packet = PacketDictionary.translatePacketType(type, data);
 
-                                broadcastPacketReseived(packet, client);
+                                readPacket(packet, client);
 //                                ChatServer.getInstance().log("Client: " +
 //                                        System.lineSeparator() + "\t" + ((ConnectPacket) packet).i_username);
 //                                DataInputStream input = new DataInputStream(client.getInputStream());
@@ -70,15 +74,15 @@ public class NetworkServer implements PacketListener {
 //                                        + " says:" + System.lineSeparator() + "\t" + request);
                             } catch (EOFException ex) {
                                 error = true;
-                                ChatServer.getInstance().log("Client " + client.getRemoteSocketAddress()
-                                        + " has disconnected!");
+//                                ChatServer.getInstance().log("Client " + client.getRemoteSocketAddress()
+//                                        + " has disconnected!");
                             } catch (IOException ex) {
                                 error = true;
                                 ex.printStackTrace();
                             }
                         }
-                        // todo send packet instead of plain removing
-                        removeClient(client);
+                        // todo send packet instead of plain removing --- done!
+//                        removeClient(client);
                     }).start();
                 } catch (IOException ex) {
                     ex.printStackTrace();
@@ -89,37 +93,47 @@ public class NetworkServer implements PacketListener {
         running = true;
     }
 
-    private void broadcastPacketReseived(Packet packet, Socket client) {
-        for (PacketListener packetListener : packetListeners) {
-            packetListener.packetReseived(packet, client);
+    private void readPacket(Packet packet, Socket client) throws IOException {
+        if (packet instanceof ConnectPacket) {
+            ConnectPacket connectPacket = new ConnectPacket(((ConnectPacket) packet).i_username);
+            connectPacket.i_username = ((ConnectPacket) packet).i_username;
+            connectClient(connectPacket, client);
+        } else if (packet instanceof DisconnectPacket) {
+            DisconnectPacket disconnectPacket = (DisconnectPacket) packet;
+            ChatServer.getInstance().log("Client " + disconnectPacket.i_username
+                    + client.getRemoteSocketAddress() + " has disconnected!");
+            sendToAll(disconnectPacket);
+            removeClient(client);
+        } else if (packet instanceof ChatPacket) {
+            ChatPacket chatPacket = (ChatPacket) packet;
+            ChatServer.getInstance().log(chatPacket.i_username + ": " + chatPacket.i_message);
+            sendToAll(chatPacket);
+        } else if (packet instanceof PacketUpdate) {
+            PacketUpdate packetUpdate = (PacketUpdate) packet;
+            if (packetUpdate.i_content.equals("request;")) {
+                Socket s = connectedClientMap.get(packetUpdate.i_username);
+                outputStream = new DataOutputStream(s.getOutputStream());
+                String users = String.join(SEPARATOR, connectedClientMap.keySet()) + SEPARATOR;
+                PacketUpdate pu = new PacketUpdate(packetUpdate.i_username, users);
+                outputStream.writeUTF(pu.getOutGoingData());
+            }
         }
     }
 
-    private void broadcastPacketSent(Packet packet, Socket client) {
-        for (PacketListener packetListener : packetListeners) {
-            packetListener.packetSent(packet, client);
+    private void sendToAll(Packet packet) {
+        for (Socket s : connectedClientMap.values()) {
+            try {
+                DataOutputStream outputStream = new DataOutputStream(s.getOutputStream());
+                outputStream.writeUTF(packet.getOutGoingData());
+//                outputStream.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     public void stopServer() {
         running = false;
-    }
-
-    @Override
-    public void packetSent(Packet packet, Socket client) {
-        if (packet instanceof ConnectPacket) {
-
-        }
-    }
-
-    @Override
-    public void packetReseived(Packet packet, Socket client) {
-        if (packet instanceof ConnectPacket) {
-            connectClient((ConnectPacket) packet, client);
-        } else if (packet instanceof ChatPacket) {
-            ChatPacket chatPacket = (ChatPacket) packet;
-            ChatServer.getInstance().log(chatPacket.i_message + " " + chatPacket.i_username);
-        }
     }
 
     private void connectClient(ConnectPacket packet, Socket client) {
@@ -128,6 +142,7 @@ public class NetworkServer implements PacketListener {
         }
         connectedClientMap.put(packet.i_username, client);
         ChatServer.getInstance().updateView();
+        sendToAll(packet);
     }
 
     private void removeClient(Socket client) {

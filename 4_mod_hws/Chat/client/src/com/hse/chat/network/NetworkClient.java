@@ -2,29 +2,21 @@ package com.hse.chat.network;
 
 import com.hse.chat.ChatClient;
 import com.hse.chat.network.packet.*;
-import javafx.application.Application;
-import jdk.nashorn.internal.scripts.JO;
 
 import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.sql.Time;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Created by kirill on 22.04.17.
  */
-public class NetworkClient implements PacketListener {
+public class NetworkClient //implements PacketListener
+{
     // constants
     //
     private static final String SEPARATOR = ";";
@@ -39,21 +31,22 @@ public class NetworkClient implements PacketListener {
     private String ipAddress;
     private int serverPort;
     private DataInputStream inputStream;
+    private DataOutputStream outputStream;
 
     private String username;
-    private Map<String, Socket> connectedClientMap = new HashMap<>();
-    private java.util.List<PacketListener> packetListeners = new ArrayList<>();
-
+    //    private Map<String, Socket> connectedClientMap = new HashMap<>();
+//    private List<PacketListener> packetListeners = new ArrayList<>();
+    private List<String> userNames = new ArrayList<>();
 
     public NetworkClient(String ipAddress, int serverPort) {
         this.ipAddress = ipAddress;
         this.serverPort = serverPort;
-        addPacketListener(this);
+//        addPacketListener(this);
     }
 
-    private void addPacketListener(PacketListener packetListener) {
-        packetListeners.add(packetListener);
-    }
+//    private void addPacketListener(PacketListener packetListener) {
+//        packetListeners.add(packetListener);
+//    }
 
     public void connectToServer() {
         try {
@@ -100,7 +93,8 @@ public class NetworkClient implements PacketListener {
                     PacketType type = PacketType.valueOf(data[0]);
                     Packet packet = PacketDictionary.translatePacketType(type, data);
 
-                    broadcastPacketReseived(packet, socket);
+//                    broadcastPacketReseived(packet, socket);
+                    readPacket(packet, socket);
                 } catch (IOException e) {
                     int res = JOptionPane.showConfirmDialog
                             (null, "Server has stopped!",
@@ -109,46 +103,78 @@ public class NetworkClient implements PacketListener {
                         try {
                             closeEverything();
                             System.out.println("Everything has been successfully closed.");
+                            System.exit(EXIT_SUCCESS);
                         } catch (IOException e1) {
                             e1.printStackTrace();
                         }
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
-                } finally {
-                    System.exit(EXIT_SUCCESS);
                 }
 
             }
         }).start();
     }
 
-    private void connectClient(ConnectPacket packet, Socket client) {
-        if (connectedClientMap.get(packet.i_username) != null) {
-            return;
+    private void readPacket(Packet packet, Socket socket) {
+        if (packet instanceof ConnectPacket) {
+            addUser(((ConnectPacket) packet).i_username);
+        } else if (packet instanceof DisconnectPacket) {
+            removeUserName(((DisconnectPacket) packet).i_username);
+        } else if (packet instanceof ChatPacket) {
+            ChatPacket chatPacket = (ChatPacket) packet;
+            StringBuffer text = new StringBuffer(chatPacket.i_username);
+            text.append(": ").append(chatPacket.i_message).append(System.lineSeparator());
+            ChatClient.getInstance().showMessage(text.toString());
+        } else if (packet instanceof PacketUpdate) {
+            PacketUpdate packetUpdate = (PacketUpdate) packet;
+            userNames = Arrays.asList(packetUpdate.i_content.split(SEPARATOR));
+            ChatClient.getInstance().updateView();
         }
-        connectedClientMap.put(packet.i_username, client);
+    }
+
+    private void removeUserName(String userName) {
+        userNames.remove(userName);
         ChatClient.getInstance().updateView();
     }
 
-    private void broadcastPacketReseived(Packet packet, Socket client) {
-        for (PacketListener packetListener : packetListeners) {
-            packetListener.packetReseived(packet, client);
-        }
-    }
-
-    private void broadcastPacketSent(Packet packet, Socket client) {
-        for (PacketListener packetListener : packetListeners) {
-            packetListener.packetSent(packet, client);
-        }
-    }
-
-    private void removeClient(Socket client) {
-        // using removeIf to avoid ConcurrentModificationException
-        //
-        connectedClientMap.entrySet().removeIf(item -> item.getValue().equals(client));
+    private void addUser(String userName) {
+        userNames.add(userName);
+        requestUserListUpdate();
         ChatClient.getInstance().updateView();
     }
+
+    private void requestUserListUpdate() {
+        PacketUpdate packetUpdate = new PacketUpdate(username, "request");
+        sendPacket(packetUpdate);
+    }
+
+    //    private void connectClient(ConnectPacket packet, Socket client) {
+//        if (connectedClientMap.get(packet.i_username) != null) {
+//            return;
+//        }
+//        connectedClientMap.put(packet.i_username, client);
+//        ChatClient.getInstance().updateView();
+//    }
+//
+//    private void broadcastPacketReseived(Packet packet, Socket client) {
+//        for (PacketListener packetListener : packetListeners) {
+//            packetListener.packetReseived(packet, client);
+//        }
+//    }
+//
+//    private void broadcastPacketSent(Packet packet, Socket client) {
+//        for (PacketListener packetListener : packetListeners) {
+//            packetListener.packetSent(packet, client);
+//        }
+//    }
+//
+//    private void removeClient(Socket client) {
+//        using removeIf to avoid ConcurrentModificationException
+
+//        connectedClientMap.entrySet().removeIf(item -> item.getValue().equals(client));
+//        ChatClient.getInstance().updateView();
+//    }
 
 
     public void closeEverything() throws IOException {
@@ -162,9 +188,9 @@ public class NetworkClient implements PacketListener {
         return username;
     }
 
-    public Map<String, Socket> getConnectedClientMap() {
-        return connectedClientMap;
-    }
+//    public Map<String, Socket> getConnectedClientMap() {
+//        return connectedClientMap;
+//    }
 
 
     public void sendPacket(Packet packet) {
@@ -178,19 +204,22 @@ public class NetworkClient implements PacketListener {
         }
     }
 
-    @Override
-    public void packetSent(Packet packet, Socket client) {
-
+    public List<String> getUserNames() {
+        return userNames;
     }
-
-    @Override
-    public void packetReseived(Packet packet, Socket client) {
-        if (packet instanceof ConnectPacket) {
-            connectClient((ConnectPacket) packet, socket);
-        } else if (packet instanceof DisconnectPacket) {
-            removeClient(socket);
-        }
-    }
+//    @Override
+//    public void packetSent(Packet packet, Socket client) {
+//
+//    }
+//
+//    @Override
+//    public void packetReseived(Packet packet, Socket client) {
+//        if (packet instanceof ConnectPacket) {
+//            connectClient((ConnectPacket) packet, socket);
+//        } else if (packet instanceof DisconnectPacket) {
+//            removeClient(socket);
+//        }
+//    }
 }
 
 // EOF
