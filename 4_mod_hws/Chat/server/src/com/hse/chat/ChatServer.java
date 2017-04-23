@@ -23,8 +23,8 @@ public class ChatServer extends JFrame {
     //
     public final static String TITLE = "Chat server";
     private static final int PORT = 5678;
-    private static final int WIDTH = 600;
-    private static final int HEIGHT = 500;
+    private static final int WIDTH = 800;
+    private static final int HEIGHT = 300;
     private static final int LIST_WIDTH = 200;
     private static final int LIST_HEIGHT = 0;
     private static final int EXIT_SUCCESS = 0;
@@ -56,9 +56,14 @@ public class ChatServer extends JFrame {
     }
 
     public ChatServer() {
+        if (server != null) {
+            JOptionPane.showMessageDialog(null, "server already running",
+                    "Too many instances", JOptionPane.ERROR_MESSAGE);
+            System.exit(EXIT_SUCCESS);
+        }
         createView();
 
-        server = new NetworkServer(this, PORT);
+        server = new NetworkServer(PORT);
 
         setTitle(TITLE);
         setSize(WIDTH, HEIGHT);
@@ -95,6 +100,9 @@ public class ChatServer extends JFrame {
         consoleSP.setBorder(BorderFactory.createTitledBorder("Console Output"));
         panel.add(consoleSP, BorderLayout.CENTER);
 
+        console.setWrapStyleWord(true);
+        console.setLineWrap(true);
+
         listUsers = new JList<>();
         JScrollPane listUsersSP = new JScrollPane(listUsers);
         listUsersSP.setBorder(BorderFactory.createTitledBorder("Connected Users:"));
@@ -115,8 +123,7 @@ public class ChatServer extends JFrame {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() ->
-        {
+        SwingUtilities.invokeLater(() -> {
             getInstance().setVisible(true);
         });
     }

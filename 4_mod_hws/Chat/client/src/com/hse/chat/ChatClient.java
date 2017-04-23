@@ -1,14 +1,13 @@
 package com.hse.chat;
 
 import com.hse.chat.network.NetworkClient;
+import com.hse.chat.network.packet.ChatPacket;
 
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import java.awt.event.*;
+import java.io.IOException;
 
 /**
  * Created by kirill on 22.04.17.
@@ -21,19 +20,19 @@ public class ChatClient extends JFrame {
     //
     private static final String TITLE = "Chat client";
     private static final int PORT = 5678;
-    private static final String IP = "127.0.0.1";
-    private static final int WIDTH = 600;
-    private static final int HEIGHT = 650;
-    private static final int LIST_WIDTH = 200;
+    private static final String IP = "192.168.1.103";
+    private static final int WIDTH = 450;
+    private static final int HEIGHT = 550;
+    private static final int LIST_WIDTH = 110;
     private static final int LIST_HEIGHT = 0;
     private static final String SEND_BTN_TEXT = "Send";
     private static final int EXIT_SUCCESS = 0;
 
     // GUI vars
     //
-    private JList listUsers;
+    private JList<String> listUsers;
     private JTextArea textChat;
-    private JTextField fieldInput;
+    private JTextArea fieldInput;
     private JButton buttonSend;
 
     public static ChatClient getInstance() {
@@ -46,7 +45,7 @@ public class ChatClient extends JFrame {
         client = new NetworkClient(IP, PORT);
         client.connectToServer();
 
-        setTitle(TITLE);
+        setTitle(TITLE + ". Logged in as " + client.getUsername());
         setSize(WIDTH, HEIGHT);
         setResizable(true);
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
@@ -57,6 +56,11 @@ public class ChatClient extends JFrame {
                         "Exit Program",
                         JOptionPane.YES_NO_OPTION);
                 if (confirmed == JOptionPane.YES_OPTION) {
+                    try {
+                        client.closeEverything();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
                     dispose();
                     System.exit(EXIT_SUCCESS);
                 }
@@ -81,19 +85,63 @@ public class ChatClient extends JFrame {
         textChat = new JTextArea();
         textChat.setEditable(false);
         // scroll to end when new messages come
+        //
         ((DefaultCaret) textChat.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
         JScrollPane textChatSP = new JScrollPane(textChat);
         panelChat.add(textChatSP, BorderLayout.CENTER);
 
         JPanel panelInput = new JPanel(new BorderLayout());
         panel.add(panelInput, BorderLayout.SOUTH);
-        fieldInput = new JTextField();
-        panelInput.add(fieldInput, BorderLayout.CENTER);
+
+        fieldInput = new JTextArea();
+        ((DefaultCaret) fieldInput.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+        JScrollPane fieldInputSP = new JScrollPane(fieldInput);
+        fieldInputSP.setPreferredSize(new Dimension(0, 60));
+        panelInput.add(fieldInputSP, BorderLayout.CENTER);
+
+        textChat.setWrapStyleWord(true);
+        textChat.setWrapStyleWord(true);
+        fieldInput.setLineWrap(true);
+        fieldInput.setLineWrap(true);
+
+        fieldInput.addKeyListener(new KeyAdapter() {
+                                      @Override
+                                      public void keyReleased(KeyEvent e) {
+                                          if (e.getKeyCode() == KeyEvent.VK_ENTER &&
+                                                  (e.getModifiers() & InputEvent.SHIFT_MASK) != 0) {
+                                              sendMessage();
+                                          }
+                                      }
+                                  }
+        );
+
         buttonSend = new JButton(SEND_BTN_TEXT);
         buttonSend.addActionListener(e -> {
-            //TODO send chat message to server
+            sendMessage();
         });
         panelInput.add(buttonSend, BorderLayout.EAST);
+    }
+
+    private void sendMessage() {
+        String message = fieldInput.getText().trim();
+        if (message.length() == 0) {
+            return;
+        }
+        StringBuffer buf = new StringBuffer(client.getUsername());
+        buf.append(": ").append(message).append(System.lineSeparator());
+
+        textChat.append(client.getUsername() + ": " + message + System.lineSeparator());
+        fieldInput.setText("");
+        // FIXME send chat message to server
+        client.sendPacket(new ChatPacket(client.getUsername(), buf.toString()));
+    }
+
+    public void updateView() {
+        DefaultListModel<String> model = new DefaultListModel<>();
+        for (String name : client.getConnectedClientMap().keySet()) {
+            model.addElement(name);
+        }
+        listUsers.setModel(model);
     }
 
     public static void main(String[] args) {

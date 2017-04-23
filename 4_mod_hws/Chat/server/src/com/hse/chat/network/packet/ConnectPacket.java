@@ -19,7 +19,7 @@ public class ConnectPacket extends Packet {
     //
     public ConnectPacket(String username) {
         super(PacketType.CONNECT);
-        this.o_username = username;
+        o_username = username;
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.hse.chat.network.packet;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -19,9 +20,7 @@ public abstract class Packet {
     // read incoming data from the same packet
     //
     public Packet(String[] rawData) {
-        for (String item : rawData) {
-            dataList.add(item);
-        }
+        dataList.addAll(Arrays.asList(rawData));
     }
 
     public Packet(PacketType packetType) {
@@ -42,7 +41,7 @@ public abstract class Packet {
 
     protected abstract void indexOutgoingData();
 
-    protected String getOutGoingData() {
+    public String getOutGoingData() {
         // request child packets to create a raw data list to be send to the client
         //
         dataList.clear();
@@ -52,7 +51,7 @@ public abstract class Packet {
 
     protected String compileOutgoingData() {
         StringBuffer stringBuffer = new StringBuffer(packetType.name()).append(SEPARATOR);
-        for (int i = dataList.size(); i >= 0; --i) {
+        for (int i = dataList.size() - 1; i >= 0; --i) {
             String data = dataList.get(i);
             stringBuffer.append(data).append(SEPARATOR);
         }

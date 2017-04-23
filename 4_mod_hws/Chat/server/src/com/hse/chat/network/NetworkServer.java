@@ -8,10 +8,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by kirill on 22.04.17.
@@ -19,7 +16,6 @@ import java.util.Map;
 public class NetworkServer implements PacketListener {
     // vars
     //
-    private ChatServer chatServer;
     private ServerSocket socket;
     private boolean running = false;
     private int port;
@@ -28,10 +24,8 @@ public class NetworkServer implements PacketListener {
     private Map<String, Socket> connectedClientMap = new HashMap<>();
 
 
-    public NetworkServer(ChatServer chatServer, int port) {
+    public NetworkServer(int port) {
         this.port = port;
-        this.chatServer = chatServer;
-
         addPacketListener(this);
     }
 
@@ -83,6 +77,7 @@ public class NetworkServer implements PacketListener {
                                 ex.printStackTrace();
                             }
                         }
+                        // todo send packet instead of plain removing
                         removeClient(client);
                     }).start();
                 } catch (IOException ex) {
@@ -121,6 +116,9 @@ public class NetworkServer implements PacketListener {
     public void packetReseived(Packet packet, Socket client) {
         if (packet instanceof ConnectPacket) {
             connectClient((ConnectPacket) packet, client);
+        } else if (packet instanceof ChatPacket) {
+            ChatPacket chatPacket = (ChatPacket) packet;
+            ChatServer.getInstance().log(chatPacket.i_message + " " + chatPacket.i_username);
         }
     }
 
@@ -129,17 +127,14 @@ public class NetworkServer implements PacketListener {
             return;
         }
         connectedClientMap.put(packet.i_username, client);
-        chatServer.updateView();
+        ChatServer.getInstance().updateView();
     }
 
     private void removeClient(Socket client) {
-        for (String name : connectedClientMap.keySet()) {
-            Socket socket = connectedClientMap.get(name);
-            if (socket.equals(client)) {
-                connectedClientMap.remove(name);
-            }
-        }
-        chatServer.updateView();
+        // using removeIf to avoid ConcurrentModificationException
+        //
+        connectedClientMap.entrySet().removeIf(item -> item.getValue().equals(client));
+        ChatServer.getInstance().updateView();
     }
 
     public Map<String, Socket> getConnectedClientMap() {

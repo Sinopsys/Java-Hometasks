@@ -1,6 +1,7 @@
 package com.hse.chat.network.packet;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -14,9 +15,7 @@ public abstract class Packet {
     // read incoming data from the same packet
     //
     public Packet(String[] rawData) {
-        for (String item : rawData) {
-            dataList.add(item);
-        }
+        Collections.addAll(dataList, rawData);
     }
 
     public Packet(PacketType packetType) {
