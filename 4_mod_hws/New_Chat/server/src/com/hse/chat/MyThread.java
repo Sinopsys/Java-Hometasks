@@ -2,21 +2,29 @@ package com.hse.chat;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
 
 /**
- * Created by kirill on 24.04.17.
+ * Created by kirill on 22.04.17.
  */
-class MyThread implements Runnable {
-    ArrayList<Socket> sockets;
-    ArrayList<String> users;
-    Socket s;
-    String userName;
 
-    public MyThread(Socket s, ArrayList sockets, ArrayList users) {
+class MyThread implements Runnable {
+    // constants
+    //
+    private final static String UPDATE_USERS = "updateuserslist:";
+    private final static String LOGOUT_MESSAGE = "logoutme:";
+
+    private ArrayList<Socket> sockets;
+    private ArrayList<String> users;
+    private Socket s;
+    private String userName;
+
+
+    public MyThread(Socket s, ArrayList<Socket> sockets, ArrayList<String> users) {
         this.s = s;
         this.users = users;
         this.sockets = sockets;
@@ -27,8 +35,8 @@ class MyThread implements Runnable {
             users.add(userName);
             broadCast(userName + " Logged in at " + (new Date()));
             sendNewUserList();
-        } catch (Exception e) {
-            System.err.println("MyThread constructor " + e);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -38,14 +46,17 @@ class MyThread implements Runnable {
             DataInputStream input = new DataInputStream(s.getInputStream());
             while (true) {
                 s1 = input.readUTF();
-                if (s1.toLowerCase().equals(ChatServer.LOGOUT_MESSAGE)) {
+                if (s1.toLowerCase().equals(LOGOUT_MESSAGE)) {
                     break;
                 }
-                broadCast(userName + " said: " + s1);
+                ChatServer.getInstance().log(userName + ": " + s1);
+                broadCast(userName + ": " + s1 + System.lineSeparator());
             }
 
             DataOutputStream output = new DataOutputStream(s.getOutputStream());
-            output.writeUTF(ChatServer.LOGOUT_MESSAGE);
+            ChatServer.getInstance().log("Client " + s.getRemoteSocketAddress()
+                    + " " + userName + " has disconnected!");
+            output.writeUTF(LOGOUT_MESSAGE);
             output.flush();
 
             users.remove(userName);
@@ -54,30 +65,31 @@ class MyThread implements Runnable {
             sockets.remove(s);
             s.close();
 
-        } catch (Exception e) {
-            System.err.println("MyThread run " + e);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
     public void broadCast(String str) {
-        Iterator iter = sockets.iterator();
+        Iterator<Socket> iter = sockets.iterator();
         while (iter.hasNext()) {
             try {
-                Socket broadSoc = (Socket) iter.next();
+                Socket broadSoc = iter.next();
                 DataOutputStream output = new DataOutputStream(broadSoc.getOutputStream());
                 output.writeUTF(str);
-                //This forces any buffered output bytes to be written out to the stream.
                 output.flush();
-            } catch (Exception e) {
-                System.err.println("MyThread broadCast " + e);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
 
     }
 
-    //a little bug here that not update on his own user list
     public void sendNewUserList() {
-        broadCast(ChatServer.UPDATE_USERS + users.toString());
+        broadCast(UPDATE_USERS + users.toString());
         ChatServer.getInstance().updateView();
     }
 }
+
+
+// EOF

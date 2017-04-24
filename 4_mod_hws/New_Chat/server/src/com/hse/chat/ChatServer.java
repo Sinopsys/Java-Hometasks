@@ -2,52 +2,56 @@ package com.hse.chat;
 
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
+import javax.swing.text.NumberFormatter;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.net.*;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+/**
+ * Created by kirill on 22.04.17.
+ */
 
 class ChatServer extends JFrame {
-    ArrayList<Socket> sockets = new ArrayList<>();
-    ArrayList<String> users = new ArrayList<>();
-    ServerSocket ss;
-    Socket s;
-    private static ChatServer INSTANCE;
 
-    //    public final static int PORT = 10000;
-    public final static String UPDATE_USERS = "updateuserslist:";
-    public final static String LOGOUT_MESSAGE = "logoutme:";
     // constants
     //
-    public final static String TITLE = "Chat server";
-    public static final int PORT = 5678;
-    private static final int WIDTH = 800;
+    private final static String TITLE = "Chat server";
+    private static final int WIDTH = 670;
     private static final int HEIGHT = 300;
     private static final int LIST_WIDTH = 200;
     private static final int LIST_HEIGHT = 0;
     private static final int EXIT_SUCCESS = 0;
+    private static final int FIELD_WIDTH = 100;
+    private static final int FIELD_HEIGHT = 25;
     private static final SimpleDateFormat DATE_FORMAT =
             new SimpleDateFormat("dd.MM.yyyy - HH:mm:ss");
-    // GUI vars
-    //
+    private static ChatServer INSTANCE;
+
+    private int PORT = 5678;
+
+
+    private ArrayList<Socket> sockets = new ArrayList<>();
+    private ArrayList<String> users = new ArrayList<>();
+    private ServerSocket ss;
+    private Socket s;
+    private JButton portBtn;
     private JTextArea console;
     private JList<String> listUsers;
 
-    public ChatServer() {
+    private ChatServer() {
         createView();
         new Thread(() -> {
             try {
-                //ServerSocket must throw exception
                 ss = new ServerSocket(PORT);
-                System.out.println("Server Started " + ss);
                 log("Server socket initialized on port " + PORT);
                 log("Listening for clients...");
                 while (true) {
-                    //this method blocks until a connection is made
                     s = ss.accept();
                     log("Client has connected! " + s.getRemoteSocketAddress());
                     Runnable r = new MyThread(s, sockets, users);
@@ -57,32 +61,16 @@ class ChatServer extends JFrame {
             } catch (BindException e) {
                 JOptionPane.showMessageDialog(null, "Server already running",
                         "Too many instances", JOptionPane.ERROR_MESSAGE);
+                closeEverything();
                 System.exit(EXIT_SUCCESS);
             } catch (IOException e) {
-                e.printStackTrace();
+                closeEverything();
+                System.exit(EXIT_SUCCESS);
             }
         }).start();
-        setTitle(TITLE);
-        setSize(WIDTH, HEIGHT);
-        setResizable(true);
-        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-        addWindowListener(new WindowAdapter() {
-            public void windowClosing(WindowEvent e) {
-                int confirmed = JOptionPane.showConfirmDialog(null,
-                        "Are you sure you want to exit the program?" + System.lineSeparator() +
-                                "Stopping the server will forse all the clients to terminate",
-                        "Exit Program",
-                        JOptionPane.YES_NO_OPTION);
-                if (confirmed == JOptionPane.YES_OPTION) {
-                    dispose();
-                    System.exit(EXIT_SUCCESS);
-                }
-            }
-        });
-        setLocationRelativeTo(null);
     }
 
-    public static ChatServer getInstance() {
+    static ChatServer getInstance() {
         ChatServer localInstance = INSTANCE;
         if (localInstance == null) {
             synchronized (ChatServer.class) {
@@ -96,6 +84,11 @@ class ChatServer extends JFrame {
     }
 
     private void createView() {
+
+        JPanel highPanel = new JPanel(new FlowLayout(FlowLayout.LEADING));
+
+        askToChangePort();
+
         JPanel panel = new JPanel();
         add(panel);
 
@@ -115,9 +108,59 @@ class ChatServer extends JFrame {
 
         listUsers = new JList<>();
         JScrollPane listUsersSP = new JScrollPane(listUsers);
-        listUsersSP.setBorder(BorderFactory.createTitledBorder("Connected Users:"));
+        listUsersSP.setBorder(BorderFactory.createTitledBorder("Users online:"));
         listUsersSP.setPreferredSize(new Dimension(LIST_WIDTH, LIST_HEIGHT));
         panel.add(listUsersSP, BorderLayout.EAST);
+
+        setTitle(TITLE);
+        setSize(WIDTH, HEIGHT);
+        setResizable(true);
+        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                int confirmed = JOptionPane.showConfirmDialog(null,
+                        "Are you sure you want to exit the program?" + System.lineSeparator() +
+                                "Stopping the server will forse all the clients to terminate",
+                        "Exit Program",
+                        JOptionPane.YES_NO_OPTION);
+                if (confirmed == JOptionPane.YES_OPTION) {
+                    dispose();
+                    closeEverything();
+                    System.exit(EXIT_SUCCESS);
+                }
+            }
+        });
+
+        setLocationRelativeTo(null);
+    }
+
+    private void askToChangePort() {
+        NumberFormat format = NumberFormat.getInstance();
+        format.setGroupingUsed(false);
+        NumberFormatter formatter = new NumberFormatter(format) {
+            @Override
+            public Object stringToValue(String text) throws ParseException {
+                if (text.equals(""))
+                    return null;
+                return super.stringToValue(text);
+            }
+        };
+        formatter.setValueClass(Integer.class);
+        formatter.setMinimum(0);
+        formatter.setMaximum(Integer.MAX_VALUE);
+        formatter.setAllowsInvalid(false);
+        formatter.setCommitsOnValidEdit(true);
+        JFormattedTextField field = new JFormattedTextField(formatter);
+        field.setText(Integer.toString(PORT));
+        field.setPreferredSize(new Dimension(FIELD_WIDTH, FIELD_HEIGHT));
+        final JComponent[] inputs = new JComponent[]{
+                new JLabel("Port"),
+                field
+        };
+        int result = JOptionPane.showConfirmDialog(null, inputs, "Enter Port", JOptionPane.PLAIN_MESSAGE);
+        if (result == JOptionPane.OK_OPTION) {
+            setPORT(Integer.valueOf(field.getText()));
+        }
     }
 
     public void updateView() {
@@ -128,14 +171,29 @@ class ChatServer extends JFrame {
         listUsers.setModel(model);
     }
 
+    public void closeEverything() {
+        try {
+            if (ss != null)
+                ss.close();
+            if (s != null)
+                s.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void log(String info) {
         console.append(DATE_FORMAT.format(new Date()) + " " + info + System.lineSeparator());
     }
 
+    void setPORT(int port) {
+        this.PORT = port;
+    }
 
     public static void main(String argus[]) {
         getInstance().setVisible(true);
     }
 }
+
 
 // EOF

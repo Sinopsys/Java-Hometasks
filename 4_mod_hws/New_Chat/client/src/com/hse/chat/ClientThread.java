@@ -1,15 +1,28 @@
 package com.hse.chat;
 
 
+import javax.swing.*;
+import javax.swing.text.BadLocationException;
 import java.io.DataInputStream;
+import java.io.EOFException;
+import java.io.IOException;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
-class ClientThread implements Runnable {
-    DataInputStream input;
-    ChatClient client;
+/**
+ * Created by kirill on 22.04.17.
+ */
 
-    public ClientThread(DataInputStream input, ChatClient client) {
+class ClientThread implements Runnable {
+
+    private final static String UPDATE_USERS = "updateuserslist:";
+    private final static String LOGOUT_MESSAGE = "logoutme:";
+    private static final int EXIT_SUCCESS = 0;
+    private DataInputStream input;
+    private ChatClient client;
+
+
+    ClientThread(DataInputStream input, ChatClient client) {
         this.input = input;
         this.client = client;
     }
@@ -19,32 +32,46 @@ class ClientThread implements Runnable {
         try {
             while (true) {
                 s2 = input.readUTF();
-                System.out.println(s2);
-                if (s2.startsWith(ChatServer.UPDATE_USERS)) {
+//                System.out.println(s2);
+                if (s2.startsWith(UPDATE_USERS)) {
                     updateUsersList(s2);
-                } else if (s2.startsWith(ChatServer.LOGOUT_MESSAGE)) {
-                    //if user logout, clear it's user list
-                    client.usersList.setListData(new Vector());
+                } else if (s2.startsWith(LOGOUT_MESSAGE)) {
+                    client.usersList.setListData(new Vector<>());
                     break;
                 } else
                     client.txtBroadcast.append("\n" + s2);
-                //
                 int lineOffset = client.txtBroadcast.getLineStartOffset(client.txtBroadcast.getLineCount() - 1);
                 client.txtBroadcast.setCaretPosition(lineOffset);
             }
-        } catch (Exception e) {
-            System.err.println("ClientThread Run " + e);
+        } catch (EOFException e) {
+            int res = JOptionPane.showConfirmDialog
+                    (null, "Server has stopped!",
+                            "Server Stopped.", JOptionPane.DEFAULT_OPTION);
+            if (res == JOptionPane.OK_OPTION) {
+                try {
+                    closeEverything();
+                    System.out.println("Everything has been successfully closed.");
+                    System.exit(EXIT_SUCCESS);
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            }
+        } catch (IOException | BadLocationException e) {
+            e.printStackTrace();
         }
     }
 
-    public void updateUsersList(String ul) {
-        Vector ulist = new Vector();
+    private void closeEverything() throws IOException {
+        if (input != null)
+            input.close();
+    }
 
-        ul = ul.replace("[", "");
-        ul = ul.replace("]", "");
-        ul = ul.replace(ChatServer.UPDATE_USERS, "");
+    private void updateUsersList(String ul) {
+        Vector<String> ulist = new Vector<>();
+        ul = ul.replace("[", "").
+                replace("]", "").
+                replace(UPDATE_USERS, "");
         StringTokenizer st = new StringTokenizer(ul, ",");
-
         while (st.hasMoreTokens()) {
             String temp = st.nextToken();
             ulist.add(temp);
@@ -52,3 +79,6 @@ class ClientThread implements Runnable {
         client.usersList.setListData(ulist);
     }
 }
+
+
+// EOF
