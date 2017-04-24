@@ -1,2 +1,0 @@
-Sat Apr 22 15:13:51 MSK 2017 Connect from IP:/127.0.0.1
-Sat Apr 22 15:14:02 MSK 2017 Disconnect from IP:/127.0.0.1
