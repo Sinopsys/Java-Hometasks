@@ -37,7 +37,7 @@ public class ChatClient extends JFrame implements ActionListener {
     private static int PORT = 5678;
     private static String IP = "127.0.0.1";
 
-    String IPADDRESS_PATTERN =
+    private String IPADDRESS_PATTERN =
             "(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}" +
                     "(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)";
 
@@ -143,9 +143,9 @@ public class ChatClient extends JFrame implements ActionListener {
                         logoutSession();
                         dispose();
                     }
-                    JOptionPane.showMessageDialog(null,
-                            "You are logged out now. ", "Exit",
-                            JOptionPane.INFORMATION_MESSAGE);
+//                    JOptionPane.showMessageDialog(null,
+//                            "You are logged out now. ", "Exit",
+//                            JOptionPane.INFORMATION_MESSAGE);
 //                    logoutSession();
                 }
                 System.exit(EXIT_SUCCESS);
@@ -217,13 +217,14 @@ public class ChatClient extends JFrame implements ActionListener {
                 //send the text the user wrote to server and then clear the text
                 output.writeUTF(txtMessage.getText());
                 txtMessage.setText("");
-            } catch (Exception excp) {
-                txtBroadcast.append("send button click :" + excp);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         } else if (tmp == loginButton) {
             String userName = JOptionPane.showInputDialog(null, "Please enter your name: ");
             if (userName != null)
                 try {
+                    txtBroadcast.setText("");
                     clientChat(userName);
                 } catch (IOException e) {
                     closeEverything();
@@ -231,13 +232,20 @@ public class ChatClient extends JFrame implements ActionListener {
                 }
         } else if (tmp == logoutButton) {
             if (s != null) {
-                logoutSession();
-                closeEverything();
+                int confirmed = JOptionPane.showConfirmDialog(null,
+                        "Are you sure you want to logout of the chat?",
+                        "Logout",
+                        JOptionPane.YES_NO_OPTION);
+                if (confirmed == JOptionPane.YES_OPTION) {
+                    txtBroadcast.append("---LOGGING OUT---" + System.lineSeparator());
+                    logoutSession();
+                    closeEverything();
+                }
             }
         } else if (tmp == exitButton) {
             if (s != null) {
-                JOptionPane.showMessageDialog(null,
-                        "You are logged out now. ", "Exit", JOptionPane.INFORMATION_MESSAGE);
+//                JOptionPane.showMessageDialog(null,
+//                        "You are logged out now. ", "Exit", JOptionPane.INFORMATION_MESSAGE);
                 logoutSession();
                 closeEverything();
             }

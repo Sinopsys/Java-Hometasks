@@ -111,8 +111,13 @@ class ChatServer extends JFrame {
         listUsersSP.setBorder(BorderFactory.createTitledBorder("Users online:"));
         listUsersSP.setPreferredSize(new Dimension(LIST_WIDTH, LIST_HEIGHT));
         panel.add(listUsersSP, BorderLayout.EAST);
-
         setTitle(TITLE);
+        try {
+            InetAddress ia = InetAddress.getLocalHost();
+            setTitle(TITLE + " " + ia.getHostAddress());
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
         setSize(WIDTH, HEIGHT);
         setResizable(true);
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
@@ -163,7 +168,7 @@ class ChatServer extends JFrame {
         }
     }
 
-    public void updateView() {
+    void updateView() {
         DefaultListModel<String> model = new DefaultListModel<>();
         for (String name : users) {
             model.addElement(name);
@@ -171,7 +176,7 @@ class ChatServer extends JFrame {
         listUsers.setModel(model);
     }
 
-    public void closeEverything() {
+    private void closeEverything() {
         try {
             if (ss != null)
                 ss.close();
@@ -182,11 +187,11 @@ class ChatServer extends JFrame {
         }
     }
 
-    public void log(String info) {
+    void log(String info) {
         console.append(DATE_FORMAT.format(new Date()) + " " + info + System.lineSeparator());
     }
 
-    void setPORT(int port) {
+    public void setPORT(int port) {
         this.PORT = port;
     }
 

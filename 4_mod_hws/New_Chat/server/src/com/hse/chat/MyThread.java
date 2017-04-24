@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -21,10 +22,12 @@ class MyThread implements Runnable {
     private ArrayList<Socket> sockets;
     private ArrayList<String> users;
     private Socket s;
+    private static final SimpleDateFormat DATE_FORMAT =
+            new SimpleDateFormat("dd.MM.yyyy - HH:mm:ss");
     private String userName;
 
 
-    public MyThread(Socket s, ArrayList<Socket> sockets, ArrayList<String> users) {
+    MyThread(Socket s, ArrayList<Socket> sockets, ArrayList<String> users) {
         this.s = s;
         this.users = users;
         this.sockets = sockets;
@@ -33,7 +36,7 @@ class MyThread implements Runnable {
             sockets.add(s);
             userName = input.readUTF();
             users.add(userName);
-            broadCast(userName + " Logged in at " + (new Date()));
+            broadCast(userName + " logged in at " + DATE_FORMAT.format(new Date()) + System.lineSeparator());
             sendNewUserList();
         } catch (IOException e) {
             e.printStackTrace();
@@ -50,7 +53,7 @@ class MyThread implements Runnable {
                     break;
                 }
                 ChatServer.getInstance().log(userName + ": " + s1);
-                broadCast(userName + ": " + s1 + System.lineSeparator());
+                broadCast(DATE_FORMAT.format(new Date()) + " " + userName + ": " + s1 + System.lineSeparator());
             }
 
             DataOutputStream output = new DataOutputStream(s.getOutputStream());
@@ -70,12 +73,10 @@ class MyThread implements Runnable {
         }
     }
 
-    public void broadCast(String str) {
-        Iterator<Socket> iter = sockets.iterator();
-        while (iter.hasNext()) {
+    private void broadCast(String str) {
+        for (Socket socket : sockets) {
             try {
-                Socket broadSoc = iter.next();
-                DataOutputStream output = new DataOutputStream(broadSoc.getOutputStream());
+                DataOutputStream output = new DataOutputStream(socket.getOutputStream());
                 output.writeUTF(str);
                 output.flush();
             } catch (IOException e) {
@@ -85,7 +86,7 @@ class MyThread implements Runnable {
 
     }
 
-    public void sendNewUserList() {
+    private void sendNewUserList() {
         broadCast(UPDATE_USERS + users.toString());
         ChatServer.getInstance().updateView();
     }
