@@ -21,7 +21,7 @@ public class ChatClient extends JFrame {
     //
     private static final String TITLE = "Chat client";
     private static final int PORT = 5678;
-    private static final String IP = "192.168.1.103";
+    private static final String IP = "127.0.0.1";
     private static final int WIDTH = 450;
     private static final int HEIGHT = 550;
     private static final int LIST_WIDTH = 110;
