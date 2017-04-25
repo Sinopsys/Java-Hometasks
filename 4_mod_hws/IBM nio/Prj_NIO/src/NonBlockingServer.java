@@ -1,6 +1,3 @@
-/**
- * Created by kirill on 24.04.17.
- */
 
 import java.io.*;
 import java.nio.*;
@@ -12,10 +9,11 @@ import java.lang.*;
 
 
 public class NonBlockingServer {
+    private static final int BUF_SIZE = 1024;
     public Selector sel = null;
     public ServerSocketChannel server = null;
     public SocketChannel socket = null;
-    public int port = 4901;
+    public int port = 4900;
     String result = null;
 
 
@@ -33,8 +31,8 @@ public class NonBlockingServer {
         sel = Selector.open();
         server = ServerSocketChannel.open();
         server.configureBlocking(false);
-        InetAddress ia = InetAddress.getLocalHost();
-        InetSocketAddress isa = new InetSocketAddress(ia, port);
+
+        InetSocketAddress isa = new InetSocketAddress(InetAddress.getLocalHost(), port);
         server.socket().bind(isa);
     }
 
@@ -56,22 +54,33 @@ public class NonBlockingServer {
                 if (key.isAcceptable()) {
                     System.out.println("Key is Acceptable");
                     ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
-                    socket = (SocketChannel) ssc.accept();
+                    socket = ssc.accept();
                     socket.configureBlocking(false);
-                    SelectionKey another = socket.register(sel, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+                    socket.register(sel, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
                 }
                 if (key.isReadable()) {
-                    System.out.println("Key is readable");
                     String ret = readMessage(key);
-                    if (ret.length() > 0) {
-                        writeMessage(socket, ret);
+                    if (!ret.isEmpty() && !ret.equals("quit") && !ret.equals("shutdown")) {
+                        System.out.println("Key is readable");
+                        try {
+                            RandomAccessFile rdm = new RandomAccessFile(new File(ret), "r");
+                            FileChannel fc = rdm.getChannel();
+                            ByteBuffer buf = ByteBuffer.allocate((int) rdm.length());
+                            fc.read(buf);
+                            buf.flip();
+                            key.attach(buf);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+//                        writeMessage(socket, ret);
                     }
                 }
                 if (key.isWritable()) {
-                    System.out.println("THe key is writable");
                     String ret = readMessage(key);
                     socket = (SocketChannel) key.channel();
-                    if (result.length() > 0) {
+                    ByteBuffer buf = (ByteBuffer) key.attachment();
+                    if (result.length() > 0 && buf != null && buf.hasRemaining()) {
+                        System.out.println("THe key is writable");
                         writeMessage(socket, ret);
                     }
                 }
@@ -80,8 +89,7 @@ public class NonBlockingServer {
     }
 
     public void writeMessage(SocketChannel socket, String ret) {
-        System.out.println("Inside the loop");
-
+        System.out.printf("Inside the loop%n");
         if (ret.equals("quit") || ret.equals("shutdown")) {
             return;
         }
@@ -89,67 +97,25 @@ public class NonBlockingServer {
         try {
             RandomAccessFile rdm = new RandomAccessFile(file, "r");
             FileChannel fc = rdm.getChannel();
-
-            // Allocate 1024 bytes buffer
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
-
+            ByteBuffer buffer = ByteBuffer.allocate(BUF_SIZE);
             Charset set = Charset.forName("us-ascii");
             CharsetDecoder dec = set.newDecoder();
             int nBytes = 0;
-
-            // Cycle through the file
-            // taking 1024 bytes per time
             while (fc.read(buffer) > 0) {
                 buffer.flip();
-
-                // Make the text
                 CharBuffer charBuf = dec.decode(buffer);
-                System.out.println(charBuf.toString());
+                System.out.printf(charBuf.toString() + "%n");
                 buffer = ByteBuffer.wrap((charBuf.toString()).getBytes());
-
-                // Write the bytes
                 nBytes += socket.write(buffer);
-
-                // Reset the buffer
                 buffer.limit(buffer.capacity()).position(0);
             }
-
-            System.out.println("nBytes = " + nBytes);
+            System.out.printf("nBytes = %d%n", nBytes);
             result = null;
         } catch (Exception e) {
             e.printStackTrace();
         }
 
     }
-
-//    public void writeMessage(SocketChannel socket, String ret) {
-//        System.out.println("Inside the loop");
-//
-//        if (ret.equals("quit") || ret.equals("shutdown")) {
-//            return;
-//        }
-//        File file = new File(ret);
-//        try {
-//
-//            RandomAccessFile rdm = new RandomAccessFile(file, "r");
-//            FileChannel fc = rdm.getChannel();
-//            ByteBuffer buffer = ByteBuffer.allocate(1024);
-//            fc.read(buffer);
-//            buffer.flip();
-//
-//            Charset set = Charset.forName("us-ascii");
-//            CharsetDecoder dec = set.newDecoder();
-//            CharBuffer charBuf = dec.decode(buffer);
-//            System.out.println(charBuf.toString());
-//            buffer = ByteBuffer.wrap((charBuf.toString()).getBytes());
-//            int nBytes = socket.write(buffer);
-//            System.out.println("nBytes = " + nBytes);
-//            result = null;
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//
-//    }
 
     public String readMessage(SelectionKey key) {
         int nBytes = 0;
@@ -182,4 +148,4 @@ public class NonBlockingServer {
 }
 
 
-
+// EOF

@@ -1,4 +1,3 @@
-package com.hse.nio;
 
 import java.nio.*;
 import java.nio.channels.*;
@@ -20,9 +19,8 @@ public class Client {
     public void makeConnection() {
         int result = 0;
         try {
-
             client = SocketChannel.open();
-            isa = new InetSocketAddress("nicholson", 4900);
+            isa = new InetSocketAddress(InetAddress.getLocalHost(), 4900);
             client.connect(isa);
             client.configureBlocking(false);
             receiveMessage();
@@ -98,30 +96,28 @@ public class Client {
         }
 
         public void run() {
-
             System.out.println("Inside receivemsg");
             int nBytes = 0;
             ByteBuffer buf = ByteBuffer.allocate(2048);
             try {
                 while (val) {
-                    while ((nBytes = nBytes = client.read(buf)) > 0) {
+                    while ((nBytes = client.read(buf)) > 0) {
                         buf.flip();
                         Charset charset = Charset.forName("us-ascii");
                         CharsetDecoder decoder = charset.newDecoder();
                         CharBuffer charBuffer = decoder.decode(buf);
                         String result = charBuffer.toString();
                         System.out.println(result);
-                        buf.flip();
-
+                        buf.clear();
                     }
                 }
-
             } catch (IOException e) {
                 e.printStackTrace();
 
             }
-
-
         }
     }
 }
+
+
+// EOF
