@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="StreamsHW:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/StreamsHW_jar</output-path>
+    <root id="archive" name="StreamsHW.jar">
+      <element id="module-output" name="StreamsHW" />
+    </root>
+  </artifact>
+</component>
