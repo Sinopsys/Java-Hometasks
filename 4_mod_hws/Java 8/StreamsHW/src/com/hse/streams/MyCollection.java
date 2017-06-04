@@ -39,7 +39,7 @@ public class MyCollection {
      *
      * @return Initialized collection.
      */
-    public static List getCollection() {
+    public static List<? extends Number> getCollection() {
         if (mIsLong && collectionLong != null) {
             return collectionLong;
         } else if (collectionBigInt != null) {
